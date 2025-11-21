@@ -1,3 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PlayReport – Live Scores</title>
+
+<style>
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #0d0d0d;
+        color: #f2f2f2;
+    }
+    header {
+        text-align: center;
+        padding: 20px 10px;
+        background: #111;
+        border-bottom: 2px solid #d4af37;
+        font-size: 22px;
+        font-weight: bold;
+        color: #d4af37;
+        letter-spacing: 1px;
+    }
+    .container {
+        padding: 15px;
+        max-width: 800px;
+        margin: auto;
+    }
+    .match {
+        background: #1a1a1a;
+        padding: 18px;
+        margin-bottom: 15px;
+        border-left: 4px solid #d4af37;
+        border-radius: 6px;
+    }
+    .league {
+        font-size: 14px;
+        color: #d4af37;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+    }
+    .info {
+        font-size: 18px;
+        font-weight: bold;
+        color: #ffffff;
+        margin-bottom: 4px;
+    }
+    .time {
+        font-size: 14px;
+        color: #aaaaaa;
+    }
+    #copyBtn {
+        width: 100%;
+        padding: 12px;
+        background: #d4af37;
+        border: none;
+        color: #111;
+        font-size: 16px;
+        font-weight: bold;
+        border-radius: 6px;
+        margin-bottom: 20px;
+    }
+    #copyBtn:active {
+        background: #b8902e;
+    }
+    .no-matches {
+        text-align: center;
+        margin-top: 40px;
+        color: #aaa;
+        font-size: 16px;
+    }
+</style>
+</head>
+
+<body>
+
+<header>PlayReport – Live Scores</header>
+
+<div class="container">
+    <button id="copyBtn">Copy All Matches</button>
+    <div id="scores"></div>
+    <div id="noMsg" class="no-matches" style="display:none;">No matches available.</div>
+</div>
+
 <script>
 
 function flag(code) {
@@ -96,7 +181,7 @@ async function loadScores() {
                     <img src="${homeLogo}" width="20" style="vertical-align:middle;border-radius:4px;">
                     ${home} ${score}
                     <img src="${awayLogo}" width="20" style="vertical-align:middle;border-radius:4px;">
-                    ${awayFlag}
+                    ${away} ${awayFlag}
                 </div>
 
                 <div class="time">${sEmoji} – ${minute}</div>
@@ -120,4 +205,7 @@ async function loadScores() {
 loadScores();
 setInterval(loadScores, 30000);
 
-        </script>
+</script>
+
+</body>
+</html>
