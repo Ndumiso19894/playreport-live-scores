@@ -10,201 +10,164 @@
         margin: 0;
         font-family: Arial, sans-serif;
         background: #0d0d0d;
-        color: #f2f2f2;
+        color: #fff;
     }
     header {
         text-align: center;
-        padding: 20px 10px;
+        padding: 18px;
         background: #111;
         border-bottom: 2px solid #d4af37;
         font-size: 22px;
-        font-weight: bold;
         color: #d4af37;
-        letter-spacing: 1px;
+        font-weight: bold;
     }
     .container {
-        padding: 15px;
-        max-width: 800px;
+        max-width: 900px;
         margin: auto;
+        padding: 15px;
     }
-    .match {
+    textarea {
+        width: 100%;
+        height: 360px;
+        padding: 12px;
+        font-size: 16px;
         background: #1a1a1a;
-        padding: 18px;
-        margin-bottom: 15px;
-        border-left: 4px solid #d4af37;
+        color: #fff;
+        border: 1px solid #333;
         border-radius: 6px;
     }
-    .league {
-        font-size: 14px;
-        color: #d4af37;
-        margin-bottom: 6px;
-        text-transform: uppercase;
-    }
-    .info {
+    .copyBtn {
+        width: 100%;
+        padding: 15px;
+        background: #d4af37;
+        color: #111;
         font-size: 18px;
         font-weight: bold;
-        color: #ffffff;
-        margin-bottom: 4px;
-    }
-    .time {
-        font-size: 14px;
-        color: #aaaaaa;
-    }
-    #copyBtn {
-        width: 100%;
-        padding: 12px;
-        background: #d4af37;
         border: none;
-        color: #111;
-        font-size: 16px;
-        font-weight: bold;
         border-radius: 6px;
-        margin-bottom: 20px;
-    }
-    #copyBtn:active {
-        background: #b8902e;
-    }
-    .no-matches {
-        text-align: center;
-        margin-top: 40px;
-        color: #aaa;
-        font-size: 16px;
+        margin-top: 10px;
     }
 </style>
 </head>
 
 <body>
 
-<header>PlayReport – Live Scores</header>
+<header>PlayReport – Facebook Score Formatter</header>
 
 <div class="container">
-    <button id="copyBtn">Copy All Matches</button>
-    <div id="scores"></div>
-    <div id="noMsg" class="no-matches" style="display:none;">No matches available.</div>
+    <textarea id="fbOutput">Loading...</textarea>
+
+    <button class="copyBtn"
+        onclick="navigator.clipboard.writeText(document.getElementById('fbOutput').value); alert('Copied for Facebook!');">
+        Copy Facebook Format
+    </button>
 </div>
 
 <script>
-
-function flag(code) {
-    if (!code) return "";
-    return code.replace(/./g, c =>
+function getFlag(country) {
+    if (!country) return "🌍";
+    return country.replace(/./g, c =>
         String.fromCodePoint(c.charCodeAt(0) + 127397)
     );
 }
 
-function statusEmoji(m) {
-    const s = m.fixture.status.short;
-    if (s === "LIVE") return "🔴 LIVE";
-    if (s === "HT") return "🟡 HT";
-    if (s === "FT") return "🟢 FT 🏁";
-    if (s === "NS") return "🔵 Soon";
-    return s;
+function square(type) {
+    return type === "red" ? "🟥" : "🟦";
+}
+
+function formatTime24(dateStr) {
+    const d = new Date(dateStr);
+    const h = d.getHours().toString().padStart(2, "0");
+    const m = d.getMinutes().toString().padStart(2, "0");
+    return `${h}:${m}`;
 }
 
 async function loadScores() {
-    const key = "def406a33f7b7b334d338f483f0d2c39"; // insert your key
+    const key = "def406a33f7b7b334d338f483f0d2c39"; // <<<<<< REPLACE THIS
 
     try {
-        // LIVE MATCHES
+        // ---------------- LIVE MATCHES ----------------
         const liveRes = await fetch("https://v3.football.api-sports.io/fixtures?live=all", {
             headers: { "x-apisports-key": key }
         });
         const liveData = await liveRes.json();
-        let liveMatches = liveData.response || [];
+        let live = liveData.response || [];
 
-        // RECENT FINISHED MATCHES
-        const ftRes = await fetch("https://v3.football.api-sports.io/fixtures?last=50", {
+        // ---------------- LAST FT MATCHES ----------------
+        const ftRes = await fetch("https://v3.football.api-sports.io/fixtures?last=100", {
             headers: { "x-apisports-key": key }
         });
         const ftData = await ftRes.json();
-        let recentMatches = ftData.response || [];
+        let list = ftData.response || [];
 
-        // Filter FT from last 6 hours
         const now = Date.now();
-        const sixHours = 6 * 60 * 60 * 1000;
+        const eightHours = 8 * 60 * 60 * 1000;
 
-        let ftLast6 = recentMatches.filter(m => {
+        let ftLast8 = list.filter(m => {
             if (m.fixture.status.short !== "FT") return false;
-            const matchTime = m.fixture.timestamp * 1000;
-            return (now - matchTime) <= sixHours;
+            const ts = m.fixture.timestamp * 1000;
+            return (now - ts) <= eightHours;
         });
 
-        // Combine
-        let finalList = [...liveMatches, ...ftLast6];
-        finalList.sort((a, b) => b.fixture.timestamp - a.fixture.timestamp);
+        // ------------------------------------------------------
+        // BUILD FACEBOOK OUTPUT
+        // ------------------------------------------------------
+        let fb = "";
 
-        const wrapper = document.getElementById("scores");
-        wrapper.innerHTML = "";
+        fb += `⚽ LIVE SCORE UPDATES (SA Time)\n\n`;
 
-        if (finalList.length === 0) {
-            document.getElementById("noMsg").style.display = "block";
-            return;
+        // LIVE SECTION
+        fb += `🔴 *LIVE MATCHES*\n`;
+
+        if (live.length === 0) {
+            fb += `No live matches right now.\n\n`;
+        } else {
+            live.forEach(m => {
+                const flag = getFlag(m.league.country);
+                const league = m.league.name;
+                const home = m.teams.home.name;
+                const away = m.teams.away.name;
+                const hg = m.goals.home;
+                const ag = m.goals.away;
+                const min = m.fixture.status.elapsed ? `${m.fixture.status.elapsed}'` : "";
+                const kick = formatTime24(m.fixture.date);
+
+                fb += `${flag} ${league}\n`;
+                fb += `⏱️ ${kick} | ${home} ${square("red")} ${hg} ${square("red")} ${ag} ${away} (${min})\n\n`;
+            });
         }
 
-        document.getElementById("noMsg").style.display = "none";
+        // FT SECTION
+        fb += `🟢 *FULL-TIME RESULTS (Last 8 hrs)*\n`;
 
-        let copyText = "";
+        if (ftLast8.length === 0) {
+            fb += `No results in last 8 hours.\n`;
+        } else {
+            ftLast8.forEach(m => {
+                const flag = getFlag(m.league.country);
+                const league = m.league.name;
+                const home = m.teams.home.name;
+                const away = m.teams.away.name;
+                const hg = m.goals.home;
+                const ag = m.goals.away;
+                const kick = formatTime24(m.fixture.date);
 
-        finalList.forEach(m => {
+                fb += `${flag} ${league}\n`;
+                fb += `⏱️ ${kick} | ${home} ${square("red")} ${hg} ${square("blue")} ${ag} ${away} (FT)\n\n`;
+            });
+        }
 
-            // League info
-            const leagueName = m.league.name;
-            const leagueFlag = flag(m.league.country);
-            const leagueLogo = m.league.logo;
-
-            // Teams
-            const home = m.teams.home.name;
-            const away = m.teams.away.name;
-            const homeFlag = flag(m.teams.home.country);
-            const awayFlag = flag(m.teams.away.country);
-            const homeLogo = m.teams.home.logo;
-            const awayLogo = m.teams.away.logo;
-
-            const score = `${m.goals.home}–${m.goals.away}`;
-
-            const sEmoji = statusEmoji(m);
-            const minute = m.fixture.status.elapsed
-                ? `⏳ ${m.fixture.status.elapsed}'`
-                : `🕒 ${m.fixture.date.slice(11, 16)}`;
-
-            const div = document.createElement("div");
-            div.className = "match";
-
-            div.innerHTML = `
-                <div class="league">
-                   [ 🏆 <img src="${leagueLogo}" width="16" style="vertical-align:middle;border-radius:3px;"> 
-                     ${leagueFlag} ${leagueName} ${leagueFlag} ]
-                </div>
-
-                <div class="info">
-                    ${homeFlag} 
-                    <img src="${homeLogo}" width="20" style="vertical-align:middle;border-radius:4px;">
-                    ${home} ${score}
-                    <img src="${awayLogo}" width="20" style="vertical-align:middle;border-radius:4px;">
-                    ${away} ${awayFlag}
-                </div>
-
-                <div class="time">${sEmoji} – ${minute}</div>
-            `;
-
-            wrapper.appendChild(div);
-
-            copyText += `[${leagueName}] ${home} ${score} ${away} — ${minute}\n`;
-        });
-
-        document.getElementById("copyBtn").onclick = () => {
-            navigator.clipboard.writeText(copyText.trim());
-            alert("Copied!");
-        };
+        document.getElementById("fbOutput").value = fb.trim();
 
     } catch (err) {
-        console.log("ERROR:", err);
+        document.getElementById("fbOutput").value = "Error loading data.";
+        console.log("ERR:", err);
     }
 }
 
+// Load immediately + every 30 seconds
 loadScores();
 setInterval(loadScores, 30000);
-
 </script>
 
 </body>
