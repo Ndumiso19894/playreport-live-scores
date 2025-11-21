@@ -39,7 +39,6 @@
         color: #d4af37;
         margin-bottom: 6px;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
     }
     .info {
         font-size: 18px;
@@ -82,53 +81,78 @@
 <div class="container">
     <button id="copyBtn">Copy All Matches</button>
     <div id="scores"></div>
-    <div class="no-matches" id="no-matches" style="display:none;">No matches right now.</div>
+    <div class="no-matches" id="noMsg" style="display:none;">No matches available.</div>
 </div>
 
 <script>
 
 async function loadScores() {
+    const key = "def406a33f7b7b334d338f483f0d2c39";  // 🔥 Replace this with your API-FOOTBALL key
+
     try {
-        const res = await fetch("https://free-api-live-football-data.p.rapidapi.com/football-current-live", {
+        // 1️⃣ Fetch LIVE matches
+        const liveRes = await fetch("https://v3.football.api-sports.io/fixtures?live=all", {
             headers: {
-                "X-RapidAPI-Key": "f11c0bbc95msh572f08aff417206p1f3472jsn755fbf8e65a3",
-                "X-RapidAPI-Host": "free-api-live-football-data.p.rapidapi.com"
+                "x-apisports-key": key,
+                "Accept": "application/json"
             }
         });
+        const liveData = await liveRes.json();
+        let liveMatches = liveData.response || [];
 
-        const data = await res.json();
-        const matches = data?.data || [];
-        const container = document.getElementById("scores");
-        const emptyText = document.getElementById("no-matches");
+        // 2️⃣ Fetch RECENT results (last 50 finished matches)
+        const ftRes = await fetch("https://v3.football.api-sports.io/fixtures?last=50", {
+            headers: {
+                "x-apisports-key": key,
+                "Accept": "application/json"
+            }
+        });
+        const ftData = await ftRes.json();
+        let recentMatches = ftData.response || [];
 
-        container.innerHTML = "";
+        // 3️⃣ Filter FT matches only within last 6 hours
+        const now = Date.now();
+        const sixHours = 6 * 60 * 60 * 1000;
 
-        if (matches.length === 0) {
-            emptyText.style.display = "block";
+        let ftLast6Hours = recentMatches.filter(m => {
+            if (m.fixture.status.short !== "FT") return false;
+            const matchTime = m.fixture.timestamp * 1000;
+            return (now - matchTime) <= sixHours;
+        });
+
+        // 4️⃣ Combine LIVE + FT(6hrs)
+        let finalList = [...liveMatches, ...ftLast6Hours];
+
+        finalList.sort((a, b) => b.fixture.timestamp - a.fixture.timestamp);
+
+        const wrapper = document.getElementById("scores");
+        wrapper.innerHTML = "";
+
+        if (finalList.length === 0) {
+            document.getElementById("noMsg").style.display = "block";
             return;
         }
 
-        emptyText.style.display = "none";
+        document.getElementById("noMsg").style.display = "none";
 
         let copyText = "";
 
-        matches.forEach(m => {
-            const league = m.league || "League";
-            const home = m.home_team;
-            const away = m.away_team;
-            const score = `${m.home_score}–${m.away_score}`;
-            const minute = m.minute ? `${m.minute}'` : m.status;
+        finalList.forEach(m => {
+            const league = m.league.name;
+            const home = m.teams.home.name;
+            const away = m.teams.away.name;
+            const score = `${m.goals.home}–${m.goals.away}`;
+            const status = m.fixture.status.short;
+            const minute = m.fixture.status.elapsed ? `${m.fixture.status.elapsed}'` : status;
 
-            const block = document.createElement("div");
-            block.className = "match";
-
-            block.innerHTML = `
+            const div = document.createElement("div");
+            div.className = "match";
+            div.innerHTML = `
                 <div class="league">[ ${league} ]</div>
                 <div class="info">${home} ${score} ${away}</div>
                 <div class="time">${minute}</div>
             `;
-
-            container.appendChild(block);
+            wrapper.appendChild(div);
 
             copyText += `[${league}] ${home} ${score} ${away} — ${minute}\n`;
         });
@@ -139,7 +163,7 @@ async function loadScores() {
         };
 
     } catch (e) {
-        console.log("Error:", e);
+        console.log("ERROR:", e);
     }
 }
 
