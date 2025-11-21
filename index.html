@@ -1,128 +1,51 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>PlayReport – Live Scores</title>
-
-<style>
-    body {
-        margin: 0;
-        font-family: Arial, sans-serif;
-        background: #0d0d0d;
-        color: #f2f2f2;
-    }
-    header {
-        text-align: center;
-        padding: 20px 10px;
-        background: #111;
-        border-bottom: 2px solid #d4af37;
-        font-size: 22px;
-        font-weight: bold;
-        color: #d4af37;
-        letter-spacing: 1px;
-    }
-    .container {
-        padding: 15px;
-        max-width: 800px;
-        margin: auto;
-    }
-    .match {
-        background: #1a1a1a;
-        padding: 18px;
-        margin-bottom: 15px;
-        border-left: 4px solid #d4af37;
-        border-radius: 6px;
-    }
-    .league {
-        font-size: 14px;
-        color: #d4af37;
-        margin-bottom: 6px;
-        text-transform: uppercase;
-    }
-    .info {
-        font-size: 18px;
-        font-weight: bold;
-        color: #ffffff;
-        margin-bottom: 4px;
-    }
-    .time {
-        font-size: 14px;
-        color: #aaaaaa;
-    }
-    #copyBtn {
-        width: 100%;
-        padding: 12px;
-        background: #d4af37;
-        border: none;
-        color: #111;
-        font-size: 16px;
-        font-weight: bold;
-        border-radius: 6px;
-        margin-bottom: 20px;
-    }
-    #copyBtn:active {
-        background: #b8902e;
-    }
-    .no-matches {
-        text-align: center;
-        margin-top: 40px;
-        color: #aaa;
-        font-size: 16px;
-    }
-</style>
-
-</head>
-
-<body>
-
-<header>PlayReport – Live Scores</header>
-
-<div class="container">
-    <button id="copyBtn">Copy All Matches</button>
-    <div id="scores"></div>
-    <div class="no-matches" id="noMsg" style="display:none;">No matches available.</div>
-</div>
-
 <script>
 
+function flag(code) {
+    if (!code) return "";
+    return code.replace(/./g, c =>
+        String.fromCodePoint(c.charCodeAt(0) + 127397)
+    );
+}
+
+function statusEmoji(m) {
+    const s = m.fixture.status.short;
+    if (s === "LIVE") return "🔴 LIVE";
+    if (s === "HT") return "🟡 HT";
+    if (s === "FT") return "🟢 FT 🏁";
+    if (s === "NS") return "🔵 Soon";
+    return s;
+}
+
 async function loadScores() {
-    const key = "def406a33f7b7b334d338f483f0d2c39";  // 🔥 Replace this with your API-FOOTBALL key
+    const key = "YOUR_API_KEY"; // insert your key
 
     try {
-        // 1️⃣ Fetch LIVE matches
+        // LIVE MATCHES
         const liveRes = await fetch("https://v3.football.api-sports.io/fixtures?live=all", {
-            headers: {
-                "x-apisports-key": key,
-                "Accept": "application/json"
-            }
+            headers: { "x-apisports-key": key }
         });
         const liveData = await liveRes.json();
         let liveMatches = liveData.response || [];
 
-        // 2️⃣ Fetch RECENT results (last 50 finished matches)
+        // RECENT FINISHED MATCHES
         const ftRes = await fetch("https://v3.football.api-sports.io/fixtures?last=50", {
-            headers: {
-                "x-apisports-key": key,
-                "Accept": "application/json"
-            }
+            headers: { "x-apisports-key": key }
         });
         const ftData = await ftRes.json();
         let recentMatches = ftData.response || [];
 
-        // 3️⃣ Filter FT matches only within last 6 hours
+        // Filter FT from last 6 hours
         const now = Date.now();
         const sixHours = 6 * 60 * 60 * 1000;
 
-        let ftLast6Hours = recentMatches.filter(m => {
+        let ftLast6 = recentMatches.filter(m => {
             if (m.fixture.status.short !== "FT") return false;
             const matchTime = m.fixture.timestamp * 1000;
             return (now - matchTime) <= sixHours;
         });
 
-        // 4️⃣ Combine LIVE + FT(6hrs)
-        let finalList = [...liveMatches, ...ftLast6Hours];
-
+        // Combine
+        let finalList = [...liveMatches, ...ftLast6];
         finalList.sort((a, b) => b.fixture.timestamp - a.fixture.timestamp);
 
         const wrapper = document.getElementById("scores");
@@ -138,23 +61,50 @@ async function loadScores() {
         let copyText = "";
 
         finalList.forEach(m => {
-            const league = m.league.name;
+
+            // League info
+            const leagueName = m.league.name;
+            const leagueFlag = flag(m.league.country);
+            const leagueLogo = m.league.logo;
+
+            // Teams
             const home = m.teams.home.name;
             const away = m.teams.away.name;
+            const homeFlag = flag(m.teams.home.country);
+            const awayFlag = flag(m.teams.away.country);
+            const homeLogo = m.teams.home.logo;
+            const awayLogo = m.teams.away.logo;
+
             const score = `${m.goals.home}–${m.goals.away}`;
-            const status = m.fixture.status.short;
-            const minute = m.fixture.status.elapsed ? `${m.fixture.status.elapsed}'` : status;
+
+            const sEmoji = statusEmoji(m);
+            const minute = m.fixture.status.elapsed
+                ? `⏳ ${m.fixture.status.elapsed}'`
+                : `🕒 ${m.fixture.date.slice(11, 16)}`;
 
             const div = document.createElement("div");
             div.className = "match";
+
             div.innerHTML = `
-                <div class="league">[ ${league} ]</div>
-                <div class="info">${home} ${score} ${away}</div>
-                <div class="time">${minute}</div>
+                <div class="league">
+                   [ 🏆 <img src="${leagueLogo}" width="16" style="vertical-align:middle;border-radius:3px;"> 
+                     ${leagueFlag} ${leagueName} ${leagueFlag} ]
+                </div>
+
+                <div class="info">
+                    ${homeFlag} 
+                    <img src="${homeLogo}" width="20" style="vertical-align:middle;border-radius:4px;">
+                    ${home} ${score}
+                    <img src="${awayLogo}" width="20" style="vertical-align:middle;border-radius:4px;">
+                    ${awayFlag}
+                </div>
+
+                <div class="time">${sEmoji} – ${minute}</div>
             `;
+
             wrapper.appendChild(div);
 
-            copyText += `[${league}] ${home} ${score} ${away} — ${minute}\n`;
+            copyText += `[${leagueName}] ${home} ${score} ${away} — ${minute}\n`;
         });
 
         document.getElementById("copyBtn").onclick = () => {
@@ -162,15 +112,12 @@ async function loadScores() {
             alert("Copied!");
         };
 
-    } catch (e) {
-        console.log("ERROR:", e);
+    } catch (err) {
+        console.log("ERROR:", err);
     }
 }
 
 loadScores();
 setInterval(loadScores, 30000);
 
-</script>
-
-</body>
-</html>
+        </script>
