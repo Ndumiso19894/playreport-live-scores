@@ -89,9 +89,9 @@
 
 async function loadScores() {
     try {
-        const res = await fetch("https://free-api-live-football-data.p.rapidapi.com/football/live", {
+        const res = await fetch("https://free-api-live-football-data.p.rapidapi.com/football-current-live", {
             headers: {
-                "X-RapidAPI-Key": "f11c0bbc95msh572f08aff417206p1f3472jsn755fb8e0ab84",
+                "X-RapidAPI-Key": "f11c0bbc95msh572f08aff417206p1f3472jsn755fbf8e65a3",
                 "X-RapidAPI-Host": "free-api-live-football-data.p.rapidapi.com"
             }
         });
@@ -130,8 +130,7 @@ async function loadScores() {
 
             container.appendChild(block);
 
-            copyText += `[${league}] ${home} ${score} ${away} — ${minute}
-`;
+            copyText += `[${league}] ${home} ${score} ${away} — ${minute}\n`;
         });
 
         document.getElementById("copyBtn").onclick = () => {
