@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>PlayReport – Live Scores</title>
+<title>PlayReport – Facebook Score Formatter</title>
 
 <style>
     body {
@@ -64,41 +64,48 @@
 </div>
 
 <script>
-function getFlag(country) {
-    if (!country) return "🌍";
-    return country.replace(/./g, c =>
+// Convert "ZA" → 🇿🇦
+function getFlag(code) {
+    if (!code) return "🌍";
+    return code.replace(/./g, c =>
         String.fromCodePoint(c.charCodeAt(0) + 127397)
     );
 }
 
-function square(type) {
-    return type === "red" ? "🟥" : "🟦";
-}
+// Score squares
+function red() { return "🟥"; }
+function blue() { return "🟦"; }
 
-function formatTime24(dateStr) {
-    const d = new Date(dateStr);
-    const h = d.getHours().toString().padStart(2, "0");
-    const m = d.getMinutes().toString().padStart(2, "0");
-    return `${h}:${m}`;
+// Time in 24h format
+function formatTime24(dStr) {
+    const d = new Date(dStr);
+    return d.getHours().toString().padStart(2,"0") + ":" +
+           d.getMinutes().toString().padStart(2,"0");
 }
 
 async function loadScores() {
-    const key = "def406a33f7b7b334d338f483f0d2c39"; // <<<<<< REPLACE THIS
+    const key = "def406a33f7b7b334d338f483f0d2c39";  // <<<<<< REPLACE THIS
 
     try {
         // ---------------- LIVE MATCHES ----------------
         const liveRes = await fetch("https://v3.football.api-sports.io/fixtures?live=all", {
-            headers: { "x-apisports-key": key }
+            headers: {
+                "x-apisports-key": key,
+                "x-rapidapi-host": "v3.football.api-sports.io"
+            }
         });
         const liveData = await liveRes.json();
-        let live = liveData.response || [];
+        let live = Array.isArray(liveData.response) ? liveData.response : [];
 
-        // ---------------- LAST FT MATCHES ----------------
+        // ---------------- FT LAST 8 HOURS ----------------
         const ftRes = await fetch("https://v3.football.api-sports.io/fixtures?last=100", {
-            headers: { "x-apisports-key": key }
+            headers: {
+                "x-apisports-key": key,
+                "x-rapidapi-host": "v3.football.api-sports.io"
+            }
         });
         const ftData = await ftRes.json();
-        let list = ftData.response || [];
+        let list = Array.isArray(ftData.response) ? ftData.response : [];
 
         const now = Date.now();
         const eightHours = 8 * 60 * 60 * 1000;
@@ -109,63 +116,60 @@ async function loadScores() {
             return (now - ts) <= eightHours;
         });
 
-        // ------------------------------------------------------
-        // BUILD FACEBOOK OUTPUT
-        // ------------------------------------------------------
+        // Build Facebook output
         let fb = "";
-
         fb += `⚽ LIVE SCORE UPDATES (SA Time)\n\n`;
 
-        // LIVE SECTION
+        // LIVE section
         fb += `🔴 *LIVE MATCHES*\n`;
 
         if (live.length === 0) {
             fb += `No live matches right now.\n\n`;
         } else {
             live.forEach(m => {
-                const flag = getFlag(m.league.country);
-                const league = m.league.name;
-                const home = m.teams.home.name;
-                const away = m.teams.away.name;
-                const hg = m.goals.home;
-                const ag = m.goals.away;
-                const min = m.fixture.status.elapsed ? `${m.fixture.status.elapsed}'` : "";
-                const kick = formatTime24(m.fixture.date);
+                const F = getFlag(m.league.country);
+                const L = m.league.name;
+                const H = m.teams.home.name;
+                const A = m.teams.away.name;
+                const HG = m.goals.home;
+                const AG = m.goals.away;
+                const MIN = m.fixture.status.elapsed ? `${m.fixture.status.elapsed}'` : "";
+                const KICK = formatTime24(m.fixture.date);
 
-                fb += `${flag} ${league}\n`;
-                fb += `⏱️ ${kick} | ${home} ${square("red")} ${hg} ${square("red")} ${ag} ${away} (${min})\n\n`;
+                fb += `${F} ${L}\n`;
+                fb += `⏱️ ${KICK} | ${H} ${red()} ${HG} ${red()} ${AG} ${A} (${MIN})\n\n`;
             });
         }
 
-        // FT SECTION
+        // FT section
         fb += `🟢 *FULL-TIME RESULTS (Last 8 hrs)*\n`;
 
         if (ftLast8.length === 0) {
             fb += `No results in last 8 hours.\n`;
         } else {
             ftLast8.forEach(m => {
-                const flag = getFlag(m.league.country);
-                const league = m.league.name;
-                const home = m.teams.home.name;
-                const away = m.teams.away.name;
-                const hg = m.goals.home;
-                const ag = m.goals.away;
-                const kick = formatTime24(m.fixture.date);
+                const F = getFlag(m.league.country);
+                const L = m.league.name;
+                const H = m.teams.home.name;
+                const A = m.teams.away.name;
+                const HG = m.goals.home;
+                const AG = m.goals.away;
+                const KICK = formatTime24(m.fixture.date);
 
-                fb += `${flag} ${league}\n`;
-                fb += `⏱️ ${kick} | ${home} ${square("red")} ${hg} ${square("blue")} ${ag} ${away} (FT)\n\n`;
+                fb += `${F} ${L}\n`;
+                fb += `⏱️ ${KICK} | ${H} ${red()} ${HG} ${blue()} ${AG} ${A} (FT)\n\n`;
             });
         }
 
         document.getElementById("fbOutput").value = fb.trim();
 
     } catch (err) {
-        document.getElementById("fbOutput").value = "Error loading data.";
-        console.log("ERR:", err);
+        document.getElementById("fbOutput").value = "⚠️ Error loading matches.";
+        console.log(err);
     }
 }
 
-// Load immediately + every 30 seconds
+// Load automatically
 loadScores();
 setInterval(loadScores, 30000);
 </script>
